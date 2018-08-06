@@ -6,6 +6,9 @@ const deployAttributeStore = require('computable/dist/helpers').deployAttributeS
 const Voting = require('computable/dist/contracts/plcr-voting').default
 const Parameterizer = require('computable/dist/contracts/parameterizer').default
 const Registry = require('computable/dist/contracts/registry').default
+// TODO
+// const stringToBytes = require('computable/dist/helpers').stringToBytes
+// const increaseTime = require('computable/dist/helpers').increaseTime
 
 // so this shit blew the fuck up... TODO come back to this later
 // const child = require('child_process')
@@ -18,6 +21,24 @@ const PORT = 8546
 const GAS_PRICE = '0x01'
 // set a very high gas limit
 const GAS_LIMIT = '0xfffffffffff'
+// defaults for the P11r
+const THREE_MINUTES = 180
+const HALF = 50
+
+const paramDefaults = {
+  minDeposit: 1,
+  pMinDeposit: 1,
+  applyStageLen: THREE_MINUTES,
+  pApplyStageLen: THREE_MINUTES,
+  commitStageLen: THREE_MINUTES,
+  pCommitStageLen: THREE_MINUTES,
+  revealStageLen: THREE_MINUTES,
+  pRevealStageLen: THREE_MINUTES,
+  dispensationPct: HALF,
+  pDispensationPct: HALF,
+  voteQuorum: HALF,
+  pVoteQuorum: HALF
+}
 
 /**
  * Web3
@@ -59,19 +80,23 @@ const setup = async () => {
 
   replServer.context.dll = await deployDll(replServer.context.web3, replServer.context.admin)
   replServer.context.attributeStore = await deployAttributeStore(replServer.context.web3, replServer.context.admin)
-  //voting
+
+  // voting
   replServer.context.voting = new Voting(replServer.context.admin)
   await replServer.context.voting.deploy(replServer.context.web3, {
     tokenAddress: replServer.context.token.getAddress(),
     dllAddress: replServer.context.dll.options.address,
     attributeStoreAddress: replServer.context.attributeStore.options.address
   }, { gas: GAS_LIMIT, gasPrice: GAS_PRICE })
+
   // parameterizer
   replServer.context.parameterizer = new Parameterizer(replServer.context.admin)
   await replServer.context.parameterizer.deploy(replServer.context.web3, {
     tokenAddress: replServer.context.token.getAddress(),
-    votingAddress: replServer.context.voting.getAddress()
+    votingAddress: replServer.context.voting.getAddress(),
+    ...paramDefaults
   }, { gas: GAS_LIMIT, gasPrice: GAS_PRICE })
+
   // registry
   replServer.context.registry = new Registry(replServer.context.admin)
   await replServer.context.registry.deploy(replServer.context.web3, {
@@ -80,6 +105,11 @@ const setup = async () => {
     parameterizerAddress: replServer.context.parameterizer.getAddress(),
     name: 'Computable TCR v0.1.0'
   }, { gas: GAS_LIMIT, gasPrice: GAS_PRICE })
+
+  // expose helper(s)
+  replServer.context.stringToBytes = replServer.context.web3.utils.toHex
+  // TODO
+  // replServer.context.increaseTime = increaseTime
 }
 
 replServer.context.log = promise => {

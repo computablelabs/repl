@@ -61,8 +61,8 @@ typings/
 .next
 
 # vim files
-.swp
-.swo
+*.swp
+*.swo
 
 # mac files
 .DS_Store
