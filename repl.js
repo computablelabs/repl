@@ -6,9 +6,10 @@ const deployAttributeStore = require('computable/dist/helpers').deployAttributeS
 const Voting = require('computable/dist/contracts/plcr-voting').default
 const Parameterizer = require('computable/dist/contracts/parameterizer').default
 const Registry = require('computable/dist/contracts/registry').default
-// TODO
-// const stringToBytes = require('computable/dist/helpers').stringToBytes
-// const increaseTime = require('computable/dist/helpers').increaseTime
+const stringToBytes = require('computable/dist/helpers').stringToBytes
+const increaseTime = require('computable/dist/helpers').increaseTime
+const eventReturnValues = require('computable/dist/helpers').eventReturnValues
+const onData = require('computable/dist/helpers').onData
 
 // so this shit blew the fuck up... TODO come back to this later
 // const child = require('child_process')
@@ -50,7 +51,6 @@ const provider = new Web3.providers.WebsocketProvider(`ws://localhost:${PORT}`)
  * TODO we could use a settings file or something for users to customize if needed
  */
 const TWO_BILLION = 2000000000
-const ONE_MILLION = 1000000
 
 const replServer = repl.start({ prompt: 'Computable > ' })
 replServer.context.web3 = new Web3(provider)
@@ -72,11 +72,6 @@ const setup = async () => {
     address: replServer.context.admin,
     supply: TWO_BILLION // 2 billion whatevers
   }, { gas: GAS_LIMIT, gasPrice: GAS_PRICE })
-
-  await replServer.context.token.transfer(replServer.context.user1, ONE_MILLION)
-  await replServer.context.token.transfer(replServer.context.user2, ONE_MILLION)
-  await replServer.context.token.transfer(replServer.context.user3, ONE_MILLION)
-  await replServer.context.token.transfer(replServer.context.user4, ONE_MILLION)
 
   replServer.context.dll = await deployDll(replServer.context.web3, replServer.context.admin)
   replServer.context.attributeStore = await deployAttributeStore(replServer.context.web3, replServer.context.admin)
@@ -107,11 +102,48 @@ const setup = async () => {
   }, { gas: GAS_LIMIT, gasPrice: GAS_PRICE })
 
   // expose helper(s)
-  replServer.context.stringToBytes = replServer.context.web3.utils.toHex
-  // TODO
-  // replServer.context.increaseTime = increaseTime
+  replServer.context.stringToBytes = stringToBytes
+  replServer.context.increaseTime = increaseTime
+  replServer.context.eventReturnValues = eventReturnValues
+  replServer.context.onData = onData
 }
 
+// call with an array of users and an amount of tokens to transfer to them from the token.
+// note this amount will be deducted from the admin so if you send to big an amount
+// you'll eventually hit a revert (2 billion)
+replServer.context.transfer = async (users, amount) => {
+  // TODO we can prob make a const type file to hold strings and import them in
+  if (!users || !Array.isArray(users)) console.log('You must pass an array of users to the transfer function')
+  else if (!amount) console.log('You must specify an amount to transfer')
+  else {
+    users.forEach(async user => {
+      await replServer.context.token.transfer(user, amount)
+    })
+  }
+}
+
+// given an array of contract addresses, an amount and a user address (or an array of them),
+// instruct the token that the contract may spend amount on the behalf of user
+replServer.context.approve = async (contracts, amount, user) => {
+  if (!contracts || !Array.isArray(contracts)) console.log('You must pass an array of contract addresses to the approve function')
+  else if (!amount) console.log('You must specify an amount to approve')
+  else if (!user) console.log('You must specify a user who is approving the contract(s) to spend')
+  else {
+    if (Array.isArray(user)) {
+      user.forEach(async userAddress => {
+        contracts.forEach(async contractAddress => {
+          await replServer.context.token.approve(contractAddress, amount, { from: userAddress })
+        })
+      })
+    } else {
+      contracts.forEach(async address => {
+        await replServer.context.token.approve(address, amount, { from: user })
+      })
+    }
+  }
+}
+
+// will print out the value contained in a given promise
 replServer.context.log = promise => {
   promise.then(ret => console.log(ret))
   return '...'
