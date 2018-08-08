@@ -5,8 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "jasmine ./**/*.spec.js",
-    "server": "node server.js",
-    "repl": "node repl.js"
+    "repl": "./start.sh"
   },
   "repository": {
     "type": "git",
