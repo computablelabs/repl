@@ -23,7 +23,7 @@
   "homepage": "https://github.com/computablelabs/repl#readme",
   "devDependencies": {},
   "dependencies": {
-    "computable": "github:computablelabs/computable.js",
+    "@computable/computablejs": "^0.1.0",
     "ganache-cli": "^6.1.6",
     "repl": "^0.1.3",
     "web3": "^1.0.0-beta.35"
