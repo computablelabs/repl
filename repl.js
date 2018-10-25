@@ -1,15 +1,15 @@
 const Web3 = require('web3')
 const repl = require('repl')
-const Token = require('computable/dist/contracts/erc-20').default
-const deployDll = require('computable/dist/helpers').deployDll
-const deployAttributeStore = require('computable/dist/helpers').deployAttributeStore
-const Voting = require('computable/dist/contracts/plcr-voting').default
-const Parameterizer = require('computable/dist/contracts/parameterizer').default
-const Registry = require('computable/dist/contracts/registry').default
-const stringToBytes = require('computable/dist/helpers').stringToBytes
-const increaseTime = require('computable/dist/helpers').increaseTime
-const eventReturnValues = require('computable/dist/helpers').eventReturnValues
-const onData = require('computable/dist/helpers').onData
+const Token = require('@computable/computablejs/dist/contracts/erc-20').default
+const deployDll = require('@computable/computablejs/dist/helpers').deployDll
+const deployAttributeStore = require('@computable/computablejs/dist/helpers').deployAttributeStore
+const Voting = require('@computable/computablejs/dist/contracts/plcr-voting').default
+const Parameterizer = require('@computable/computablejs/dist/contracts/parameterizer').default
+const Registry = require('@computable/computablejs/dist/contracts/registry').default
+const stringToBytes = require('@computable/computablejs/dist/helpers').stringToBytes
+const increaseTime = require('@computable/computablejs/dist/helpers').increaseTime
+const eventReturnValues = require('@computable/computablejs/dist/helpers').eventReturnValues
+const onData = require('@computable/computablejs/dist/helpers').onData
 
 // so this shit blew the fuck up... TODO come back to this later
 // const child = require('child_process')
@@ -41,65 +41,58 @@ const paramDefaults = {
   pVoteQuorum: HALF
 }
 
-/**
- * Web3
- */
-const provider = new Web3.providers.WebsocketProvider(`ws://localhost:${PORT}`)
 
 /**
  * TRC specific constants
  * TODO we could use a settings file or something for users to customize if needed
  */
 const TWO_BILLION = 2000000000
-
 const replServer = repl.start({ prompt: 'Computable > ' })
-replServer.context.web3 = new Web3(provider)
+
+/*
+ * *** Command ***
+
+  log(token.estimateGas('approve', { from: user1 }, registry.getAddress(), 100))
+  log(token.getDeployed().methods.approve(registry.getAddress(), 100).estimateGas())
+
+  log(registry.estimateGas('apply', { from: user1 }, encodedListing, 100, ''))
+*/
+
+/**
+ * Web3
+ */
+replServer.context.web3 = new Web3('https://ropsten.infura.io/v3/6517923c842c4d6b8e67f24b69a21b37')
 
 const setup = async () => {
   // accounts
-  replServer.context.accounts = await replServer.context.web3.eth.getAccounts()
+  replServer.context.admin = '0x4D96B018327Df1502f847236AB5Cc710021daD4b'
+  replServer.context.user1 = '0xc53a26eeBc45E801795bDA56BC6Ad7D9297515b5'
 
-  replServer.context.admin = replServer.context.accounts[0]
-  replServer.context.user1 = replServer.context.accounts[1]
-  replServer.context.user2 = replServer.context.accounts[2]
-  replServer.context.user3 = replServer.context.accounts[3]
-  replServer.context.user4 = replServer.context.accounts[4]
+  replServer.context.encodedListing = replServer.context.web3.utils.toHex('sample listing')
 
   // token
   replServer.context.token = new Token(replServer.context.admin)
-
-  await replServer.context.token.deploy(replServer.context.web3, {
-    address: replServer.context.admin,
-    supply: TWO_BILLION // 2 billion whatevers
-  }, { gas: GAS_LIMIT, gasPrice: GAS_PRICE })
-
-  replServer.context.dll = await deployDll(replServer.context.web3, replServer.context.admin)
-  replServer.context.attributeStore = await deployAttributeStore(replServer.context.web3, replServer.context.admin)
+  await replServer.context.token.at(replServer.context.web3, {
+    address: '0x88591967CeDBd025c1b8c735fA211555D7530609',
+  })
 
   // voting
   replServer.context.voting = new Voting(replServer.context.admin)
-  await replServer.context.voting.deploy(replServer.context.web3, {
-    tokenAddress: replServer.context.token.getAddress(),
-    dllAddress: replServer.context.dll.options.address,
-    attributeStoreAddress: replServer.context.attributeStore.options.address
-  }, { gas: GAS_LIMIT, gasPrice: GAS_PRICE })
+  await replServer.context.voting.at(replServer.context.web3, {
+    address: '0xc7a4FcF311146A76ddD9Fdb1e377a35407F3dEBe',
+  })
 
   // parameterizer
   replServer.context.parameterizer = new Parameterizer(replServer.context.admin)
-  await replServer.context.parameterizer.deploy(replServer.context.web3, {
-    tokenAddress: replServer.context.token.getAddress(),
-    votingAddress: replServer.context.voting.getAddress(),
-    ...paramDefaults
-  }, { gas: GAS_LIMIT, gasPrice: GAS_PRICE })
+  await replServer.context.parameterizer.at(replServer.context.web3, {
+    address: '0xDeA606418B144CB558E9F714E8267e7d16E54218',
+  })
 
   // registry
   replServer.context.registry = new Registry(replServer.context.admin)
-  await replServer.context.registry.deploy(replServer.context.web3, {
-    tokenAddress: replServer.context.token.getAddress(),
-    votingAddress: replServer.context.voting.getAddress(),
-    parameterizerAddress: replServer.context.parameterizer.getAddress(),
-    name: 'Computable TCR v0.1.0'
-  }, { gas: GAS_LIMIT, gasPrice: GAS_PRICE })
+  await replServer.context.registry.at(replServer.context.web3, {
+    address: '0x6393f424076E2F58E20507569Fe410d7Fc109635',
+  })
 
   // expose helper(s)
   replServer.context.stringToBytes = stringToBytes
